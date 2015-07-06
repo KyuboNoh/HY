@@ -33,7 +33,7 @@ class InnerProducts(object):
         return self._getInnerProduct('E', prop=prop, invProp=invProp, invMat=invMat, doFast=doFast)
 
     def _getInnerProduct(self, projType, prop=None, invProp=False, invMat=False, doFast=True):
-        """
+        """r
             :param str projType: 'F' for faces 'E' for edges
             :param numpy.array prop: material property (tensor properties are possible) at each cell center (nC, (1, 3, or 6))
             :param bool invProp: inverts the material property
