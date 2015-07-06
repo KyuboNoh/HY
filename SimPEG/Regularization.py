@@ -311,7 +311,7 @@ class Tikhonov(BaseRegularization):
         if self.smoothModel == True:
             mD1 = self.mapping.deriv(m)
             mD2 = self.mapping.deriv(m - self.mref)
-            r1 = self.Wsmooth * ( self.mapping * (m)) 
+            r1 = self.Wsmooth * ( self.mapping * (m))
             r2 = self.Ws * ( self.mapping * (m - self.mref) )
             out1 = mD1.T * ( self.Wsmooth.T * r1 )
             out2 = mD2.T * ( self.Ws.T * r2 )
