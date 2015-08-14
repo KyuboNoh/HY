@@ -17,6 +17,30 @@ class IdentityMap(object):
         Utils.setKwargs(self, **kwargs)
         self.mesh = mesh
 
+    # Pickleing support methods
+    def __getstate__(self):
+        '''
+        Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+        Used when doing:
+            pickle.dump(pickleFile,object)
+        '''
+        odict = self.__dict__.copy()
+        # Remove fields that are not needed
+        # Return the dict
+        return odict
+
+    def __setstate__(self,odict):
+        '''
+        Function that sets a pickle dictionary in to an object.
+
+        Used when doing:
+            object = pickle.load(pickleFile)
+        '''
+        # Update the dict
+        self.__dict__.update(odict)
+        # Re-hook the methods to the object
+
     @property
     def nP(self):
         """
@@ -289,7 +313,7 @@ class FullMap(IdentityMap):
     """
     FullMap
 
-    Given a scalar, the FullMap maps the value to the 
+    Given a scalar, the FullMap maps the value to the
     full model space.
     """
 
@@ -314,8 +338,8 @@ class FullMap(IdentityMap):
             :rtype: numpy.array
             :return: derivative of transformed model
         """
-        return np.ones([self.mesh.nC,1])     
-      
+        return np.ones([self.mesh.nC,1])
+
 
 class Vertical1DMap(IdentityMap):
     """Vertical1DMap

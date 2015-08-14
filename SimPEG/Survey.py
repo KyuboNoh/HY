@@ -19,6 +19,35 @@ class BaseRx(object):
         self._Ps = {}
         Utils.setKwargs(self, **kwargs)
 
+    # Pickleing support methods
+    def __getstate__(self):
+        '''
+        Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+        Used when doing:
+            pickle.dump(pickleFile,object)
+        '''
+        odict = self.__dict__.copy()
+        # Remove fields that are not needed
+        del odict['hook']
+        del odict['setKwargs']
+        # Return the dict
+        return odict
+
+    def __setstate__(self,odict):
+        '''
+        Function that sets a pickle dictionary in to an object.
+
+        Used when doing:
+            object = pickle.load(pickleFile)
+        '''
+        # Update the dict
+        self.__dict__.update(odict)
+        # Re-hook the methods to the object
+        Utils.codeutils.hook(self,Utils.codeutils.hook)
+        Utils.codeutils.hook(self,Utils.codeutils.setKwargs)
+
+
     @property
     def rxType(self):
         """Receiver Type"""
@@ -129,6 +158,33 @@ class BaseSrc(object):
         self.rxList = rxList
         Utils.setKwargs(self, **kwargs)
 
+    # Pickleing support methods
+    def __getstate__(self):
+        '''
+        Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+        Used when doing:
+            pickle.dump(pickleFile,object)
+        '''
+        odict = self.__dict__.copy()
+        # Remove fields that are not needed
+        del odict['hook']
+        del odict['setKwargs']
+        # Return the dict
+        return odict
+
+    def __setstate__(self,odict):
+        '''
+        Function that sets a pickle dictionary in to an object.
+
+        Used when doing:
+            object = pickle.load(pickleFile)
+        '''
+        # Update the dict
+        self.__dict__.update(odict)
+        # Re-hook the methods to the object
+        Utils.codeutils.hook(self,Utils.codeutils.hook)
+        Utils.codeutils.hook(self,Utils.codeutils.setKwargs)
 
     @property
     def nD(self):
@@ -152,6 +208,25 @@ class Data(object):
             self._dataDict[src] = {}
         if v is not None:
             self.fromvec(v)
+
+    # Pickleing support methods
+    def __getstate__(self):
+        '''
+        Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+        Used when doing:
+            pickle.dump(pickleFile,object)
+        '''
+        pass
+
+    def __setstate__(self,odict):
+        '''
+        Function that sets a pickle dictionary in to an object.
+
+        Used when doing:
+            object = pickle.load(pickleFile)
+        '''
+        pass
 
     def _ensureCorrectKey(self, key):
         if type(key) is tuple:
@@ -210,11 +285,39 @@ class BaseSurvey(object):
     mtrue = None     #: True model, if data is synthetic
 
     counter = None   #: A SimPEG.Utils.Counter object
+    srcPair = BaseSrc  #: Source Pair
 
     def __init__(self, **kwargs):
         Utils.setKwargs(self, **kwargs)
 
-    srcPair = BaseSrc  #: Source Pair
+    # Pickleing support methods
+    def __getstate__(self):
+        '''
+        Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+        Used when doing:
+            pickle.dump(pickleFile,object)
+        '''
+        odict = self.__dict__.copy()
+        # Remove fields that are not needed
+        del odict['hook']
+        del odict['setKwargs']
+        # Return the dict
+        return odict
+
+    def __setstate__(self,odict):
+        '''
+        Function that sets a pickle dictionary in to an object.
+
+        Used when doing:
+            object = pickle.load(pickleFile)
+        '''
+        # Update the dict
+        self.__dict__.update(odict)
+        # Re-hook the methods to the object
+        Utils.codeutils.hook(self,Utils.codeutils.hook)
+        Utils.codeutils.hook(self,Utils.codeutils.setKwargs)
+
 
     @property
     def srcList(self):

@@ -27,6 +27,34 @@ class BaseRegularization(object):
         self.mapping = mapping or Maps.IdentityMap(mesh)
         self.mapping._assertMatchesPair(self.mapPair)
 
+    # Pickleing support methods
+    def __getstate__(self):
+        '''
+        Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+        Used when doing:
+            pickle.dump(pickleFile,object)
+        '''
+        odict = self.__dict__.copy()
+        # Remove fields that are not needed
+        del odict['hook']
+        del odict['setKwargs']
+        # Return the dict
+        return odict
+
+    def __setstate__(self,odict):
+        '''
+        Function that sets a pickle dictionary in to an object.
+
+        Used when doing:
+            object = pickle.load(pickleFile)
+        '''
+        # Update the dict
+        self.__dict__.update(odict)
+        # Re-hook the methods to the object
+        Utils.codeutils.hook(self,Utils.codeutils.hook)
+        Utils.codeutils.hook(self,Utils.codeutils.setKwargs)
+
     @property
     def parent(self):
         """This is the parent of the regularization."""
@@ -311,7 +339,7 @@ class Tikhonov(BaseRegularization):
         if self.smoothModel == True:
             mD1 = self.mapping.deriv(m)
             mD2 = self.mapping.deriv(m - self.mref)
-            r1 = self.Wsmooth * ( self.mapping * (m)) 
+            r1 = self.Wsmooth * ( self.mapping * (m))
             r2 = self.Ws * ( self.mapping * (m - self.mref) )
             out1 = mD1.T * ( self.Wsmooth.T * r1 )
             out2 = mD2.T * ( self.Ws.T * r2 )

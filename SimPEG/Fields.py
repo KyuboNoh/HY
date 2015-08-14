@@ -12,6 +12,34 @@ class Fields(object):
     aliasFields = None  #: Aliased fields, a dict with [alias, location, function], e.g. {"b":["e","F",lambda(F,e,ind)]}
     dtype = float       #: dtype is the type of the storage matrix. This can be a dictionary.
 
+    # Pickleing support methods
+    def __getstate__(self):
+        '''
+        Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+        Used when doing:
+            pickle.dump(pickleFile,object)
+        '''
+        odict = self.__dict__.copy()
+        # Remove fields that are not needed
+        del odict['hook']
+        del odict['setKwargs']
+        # Return the dict
+        return odict
+
+    def __setstate__(self,odict):
+        '''
+        Function that sets a pickle dictionary in to an object.
+
+        Used when doing:
+            object = pickle.load(pickleFile)
+        '''
+        # Update the dict
+        self.__dict__.update(odict)
+        # Re-hook the methods to the object
+        Utils.codeutils.hook(self,Utils.codeutils.hook)
+        Utils.codeutils.hook(self,Utils.codeutils.setKwargs)
+
     def __init__(self, mesh, survey, **kwargs):
         self.survey = survey
         self.mesh = mesh

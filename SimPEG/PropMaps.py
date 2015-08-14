@@ -13,6 +13,34 @@ class Property(object):
         self.doc = doc
         Utils.setKwargs(self, **kwargs)
 
+    # Pickleing support methods
+    def __getstate__(self):
+        '''
+        Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+        Used when doing:
+            pickle.dump(pickleFile,object)
+        '''
+        odict = self.__dict__.copy()
+        # Remove fields that are not needed
+        del odict['hook']
+        del odict['setKwargs']
+        # Return the dict
+        return odict
+
+    def __setstate__(self,odict):
+        '''
+        Function that sets a pickle dictionary in to an object.
+
+        Used when doing:
+            object = pickle.load(pickleFile)
+        '''
+        # Update the dict
+        self.__dict__.update(odict)
+        # Re-hook the methods to the object
+        Utils.codeutils.hook(self,Utils.codeutils.hook)
+        Utils.codeutils.hook(self,Utils.codeutils.setKwargs)
+
     @property
     def propertyLink(self):
         "Can be something like: ('sigma', Maps.ReciprocalMap)"
@@ -118,6 +146,36 @@ class PropModel(object):
         self.vector  = vector
         assert len(self.vector) == self.nP
 
+    # Pickleing support methods
+    def __reduce__(self):
+        return (dict,{self.propMap,self.vector})
+
+    # def __getstate__(self):
+    #     '''
+    #     Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+    #     Used when doing:
+    #         pickle.dump(pickleFile,object)
+    #     '''
+    #     self.__class__ = ProbModel
+    #     odict = {}
+    #     odict['vec'] = self.__dict__['vector']
+    #     odict['pMap'] = self.__dict__['propMap']
+    #     # Return the dict
+    #     return odict
+
+    # def __setstate__(self,odict):
+    #     '''
+    #     Function that sets a pickle dictionary in to an object.
+
+    #     Used when doing:
+    #         object = pickle.load(pickleFile)
+    #     '''
+    #     # Update the dict
+    #     # Re-hook the methods to the object
+    #     self.propMap = odict['prMap']
+    #     self.vector = odict['vec']
+
     @property
     def nP(self):
         inds = []
@@ -207,6 +265,24 @@ class PropMap(object):
         else:
             raise Exception('mappings must be a dict, a mapping, or a list of tuples.')
 
+    # Pickleing support methods
+    def __getstate__(self):
+        '''
+        Method that makes the dictionary of the object pickleble, removes non-pickleble elements of the object.
+
+        Used when doing:
+            pickle.dump(pickleFile,object)
+        '''
+        pass
+
+    def __setstate__(self,odict):
+        '''
+        Function that sets a pickle dictionary in to an object.
+
+        Used when doing:
+            object = pickle.load(pickleFile)
+        '''
+        pass
 
     def setup(self, maps, slices=None):
         """
@@ -239,7 +315,7 @@ class PropMap(object):
             setattr(self, '%sMap'%name, mapping)
             setattr(self, '%sIndex'%name, slices.get(name, slice(nP, nP + mapping.nP)))
             nP += mapping.nP
-        self.nP = nP 
+        self.nP = nP
 
     @property
     def defaultInvProp(self):
