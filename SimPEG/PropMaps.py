@@ -147,8 +147,8 @@ class PropModel(object):
         assert len(self.vector) == self.nP
 
     # Pickleing support methods
-    def __reduce__(self):
-        return (dict,{self.propMap,self.vector})
+    # def __reduce__(self):
+    #     return (dict,{self.propMap,self.vector})
 
     # def __getstate__(self):
     #     '''
