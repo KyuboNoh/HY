@@ -329,13 +329,12 @@ class PrimSecSigma(BaseSrc):
     def S_e(self,prob):
         MeSigma = prob.MeSigma
         MeSigmaPrimary = prob.mesh.getEdgeInnerProduct(self.sigmaPrimary)
-
         return (MeSigma - MeSigmaPrimary) * self._ePrimary
 
     def S_eDeriv(self, prob, v, adjoint = False):
         MeSigmaDeriv = prob.MeSigmaDeriv
         if adjoint is not True:
-            return MeSigmaDeriv(self.ePrimary) * v 
-        return MeSigmaDeriv(self.ePrimary).T * v
+            return MeSigmaDeriv(Utils.mkvc(self.ePrimary)) * v # TODO: This is really sloppy and will not work if more than one freq
+        return MeSigmaDeriv(Utils.mkvc(self.ePrimary)).T * v
 
 
