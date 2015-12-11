@@ -313,4 +313,29 @@ class CircularLoop(BaseSrc):
 
             return -C.T * (MMui_s * self.bPrimary(prob))
 
+class PrimSecSigma(BaseSrc):
+
+    # TODO: This will only work for E-B formulation
+    def __init__(self, rxList, freq, ePrimary, sigmaPrimary):
+        self.freq = float(freq)
+        self._ePrimary = ePrimary
+        self.sigmaPrimary = sigmaPrimary
+        self.integrate = False
+        BaseSrc.__init__(self, rxList)
+
+    def ePrimary(self,prob):
+        return self._ePrimary
+
+    def S_e(self,prob):
+        MeSigma = prob.MeSigma
+        MeSigmaPrimary = prob.mesh.getEdgeInnerProduct(self.sigmaPrimary)
+
+        return (MeSigma - MeSigmaPrimary) * self._ePrimary
+
+    def S_eDeriv(self, prob, v, adjoint = False):
+        MeSigmaDeriv = prob.MeSigmaDeriv
+        if adjoint is not True:
+            return MeSigmaDeriv(self.ePrimary) * v 
+        return MeSigmaDeriv(self.ePrimary).T * v
+
 
