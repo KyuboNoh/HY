@@ -243,10 +243,9 @@ class Problem_e(BaseFDEMProblem):
         MfMui = self.MfMui
         S_mDeriv, S_eDeriv = src.evalDeriv(self, adjoint)
 
-        if adjoint:
+        if adjoint: 
             dRHS = MfMui * (C * v)
             return S_mDeriv(dRHS) - 1j * omega(freq) * S_eDeriv(v)
-
         else:
             return C.T * (MfMui * S_mDeriv(v)) -1j * omega(freq) * S_eDeriv(v)
 

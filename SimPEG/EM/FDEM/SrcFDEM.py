@@ -15,7 +15,7 @@ class BaseSrc(Survey.BaseSrc):
         S_e = self.S_e(prob)
         return S_m, S_e
 
-    def evalDeriv(self, prob, v, adjoint=False):
+    def evalDeriv(self, prob, adjoint=False):
         return lambda v: self.S_mDeriv(prob,v,adjoint), lambda v: self.S_eDeriv(prob,v,adjoint)
 
     def bPrimary(self, prob):
@@ -333,7 +333,7 @@ class PrimSecSigma(BaseSrc):
 
     def S_eDeriv(self, prob, v, adjoint = False):
         MeSigmaDeriv = prob.MeSigmaDeriv
-        if adjoint is not True:
+        if not adjoint:
             return MeSigmaDeriv(Utils.mkvc(self._ePrimary)) * v # TODO: This is really sloppy and will not work if more than one freq
         return MeSigmaDeriv(Utils.mkvc(self._ePrimary)).T * v
 
