@@ -333,8 +333,8 @@ class PrimSecSigma(BaseSrc):
 
     def S_eDeriv(self, prob, v, adjoint = False):
         MeSigmaDeriv = prob.MeSigmaDeriv
-        if not adjoint:
+        if adjoint is not True:
             return MeSigmaDeriv(Utils.mkvc(self._ePrimary)) * v # TODO: This is really sloppy and will not work if more than one freq
-        return MeSigmaDeriv(Utils.mkvc(self._ePrimary)).T * v
+        return MeSigmaDeriv(Utils.mkvc(self._ePrimary)) * v
 
 
