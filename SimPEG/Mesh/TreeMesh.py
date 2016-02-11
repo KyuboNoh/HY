@@ -90,24 +90,28 @@
 #
 
 from SimPEG import np, sp, Utils, Solver
-import matplotlib.pyplot as plt
-import matplotlib
-from mpl_toolkits.mplot3d import Axes3D
-import matplotlib.colors as colors
-import matplotlib.cm as cmx
 
-import TreeUtils
+try:
+    import TreeUtils
+    _IMPORT_TREEUTILS = True
+except Exception, e:
+    _IMPORT_TREEUTILS = False
+
+
 from InnerProducts import InnerProducts
 from TensorMesh import TensorMesh, BaseTensorMesh
+from MeshIO import TreeMeshIO
 import time
 
 MAX_BITS = 20
 
-class TreeMesh(BaseTensorMesh, InnerProducts):
+class TreeMesh(BaseTensorMesh, InnerProducts, TreeMeshIO):
 
     _meshType = 'TREE'
 
     def __init__(self, h, x0=None, levels=None):
+        if not _IMPORT_TREEUTILS:
+            raise Exception('Could not import the Cython code to run the TreeMesh Try:.\n\npython setup.py build_ext --inplace')
         assert type(h) is list, 'h must be a list'
         assert len(h) in [2,3], "There is only support for TreeMesh in 2D or 3D."
 
@@ -561,15 +565,18 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
         return [p - (p % mod) for p in pointer[:-1]] + [pointer[-1]-1]
 
     def _cellN(self, p):
+        """Node location [x,y(,z)] of a single cell, closest to origin, given a pointer."""
         p = self._asPointer(p)
         return [hi[:p[ii]].sum() for ii, hi in enumerate(self.h)]
 
     def _cellH(self, p):
+        """Widths of a single cell given a pointer."""
         p = self._asPointer(p)
         w = self._levelWidth(p[-1])
         return [hi[p[ii]:p[ii]+w].sum() for ii, hi in enumerate(self.h)]
 
     def _cellC(self, p):
+        """Cell center of a single cell (without origin correction), given a pointer."""
         return (np.array(self._cellH(p))/2.0 + self._cellN(p)).tolist()
 
     def _levelWidth(self, level):
@@ -824,8 +831,10 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
     def _numberCells(self, force=False):
         if not self.__dirtyCells__ and not force: return
         self._cc2i = dict()
+        self._i2cc = dict()
         for ii, c in enumerate(sorted(self._cells)):
             self._cc2i[c] = ii
+            self._i2cc[ii] = c
         self.__dirtyCells__ = False
 
     def _numberNodes(self, force=False):
@@ -1701,9 +1710,9 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
         "Construct the averaging operator on cell faces to cell centers."
         if getattr(self, '_aveF2CC', None) is None:
             if self.dim == 2:
-                self._aveF2CC = 1./self.dim*sp.hstack([self.aveFx2CC, self.aveFy2CC])
+                self._aveF2CC = 1./self.dim*sp.hstack([self.aveFx2CC, self.aveFy2CC]).tocsr()
             elif self.dim == 3:
-                self._aveF2CC = 1./self.dim*sp.hstack([self.aveFx2CC, self.aveFy2CC, self.aveFz2CC])
+                self._aveF2CC = 1./self.dim*sp.hstack([self.aveFx2CC, self.aveFy2CC, self.aveFz2CC]).tocsr()
         return self._aveF2CC
 
     @property
@@ -1711,9 +1720,9 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
         "Construct the averaging operator on cell faces to cell centers."
         if getattr(self, '_aveF2CCV', None) is None:
             if self.dim == 2:
-                self._aveF2CCV = sp.block_diag([self.aveFx2CC, self.aveFy2CC])
+                self._aveF2CCV = sp.block_diag([self.aveFx2CC, self.aveFy2CC]).tocsr()
             elif self.dim == 3:
-                self._aveF2CCV = sp.block_diag([self.aveFx2CC, self.aveFy2CC, self.aveFz2CC])
+                self._aveF2CCV = sp.block_diag([self.aveFx2CC, self.aveFy2CC, self.aveFz2CC]).tocsr()
         return self._aveF2CCV
 
     @property
@@ -1960,10 +1969,17 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
 
     def plotGrid(self, ax=None, showIt=False,
         grid=True,
-        cells=True, cellLine=False,
+        cells=False, cellLine=False,
         nodes=False,
         facesX=False, facesY=False, facesZ=False,
         edgesX=False, edgesY=False, edgesZ=False):
+
+
+        import matplotlib.pyplot as plt
+        import matplotlib
+        from mpl_toolkits.mplot3d import Axes3D
+        import matplotlib.colors as colors
+        import matplotlib.cm as cmx
 
         # self.number()
 
@@ -1975,24 +1991,28 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
             fig = ax.figure
 
         if grid:
+            X, Y, Z = [], [], []
             for ind in self._sortedCells:
                 p = self._asPointer(ind)
                 n = self._cellN(p)
                 h = self._cellH(p)
-                x = [n[0]    , n[0] + h[0], n[0] + h[0], n[0]       , n[0]]
-                y = [n[1]    , n[1]       , n[1] + h[1], n[1] + h[1], n[1]]
                 if self.dim == 2:
-                    ax.plot(x,y, 'b-')
+                    X += [n[0]    , n[0] + h[0], n[0] + h[0], n[0]       , n[0], np.nan]
+                    Y += [n[1]    , n[1]       , n[1] + h[1], n[1] + h[1], n[1], np.nan]
                 elif self.dim == 3:
-                    ax.plot(x,y, 'b-', zs=[n[2]]*5)
-                    z = [n[2] + h[2], n[2] + h[2], n[2] + h[2], n[2] + h[2], n[2] + h[2]]
-                    ax.plot(x,y, 'b-', zs=z)
+                    X += [n[0]    , n[0] + h[0], n[0] + h[0], n[0]       , n[0], np.nan]*2
+                    Y += [n[1]    , n[1]       , n[1] + h[1], n[1] + h[1], n[1], np.nan]*2
+                    Z += [n[2]]*5+[np.nan]
+                    Z += [n[2] + h[2], n[2] + h[2], n[2] + h[2], n[2] + h[2], n[2] + h[2], np.nan]
                     sides = [0,0], [h[0],0], [0,h[1]], [h[0],h[1]]
                     for s in sides:
-                        x = [n[0] + s[0], n[0] + s[0]]
-                        y = [n[1] + s[1], n[1] + s[1]]
-                        z = [n[2]       , n[2] + h[2]]
-                        ax.plot(x,y, 'b-', zs=z)
+                        X += [n[0] + s[0], n[0] + s[0]]
+                        Y += [n[1] + s[1], n[1] + s[1]]
+                        Z += [n[2]       , n[2] + h[2]]
+            if self.dim == 2:
+                ax.plot(X,Y, 'b-')
+            elif self.dim == 3:
+                ax.plot(X,Y, 'b-', zs=Z)
 
         if self.dim == 2:
             if cells:
@@ -2004,11 +2024,13 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
                 ax.plot(self._gridN[:,0], self._gridN[:,1], 'ms')
                 ax.plot(self._gridN[self._hangingN.keys(),0], self._gridN[self._hangingN.keys(),1], 'ms', ms=10, mfc='none', mec='m')
             if facesX:
-                ax.plot(self._gridFx[self._hangingFx.keys(),0], self._gridFx[self._hangingFx.keys(),1], 'gs', ms=10, mfc='none', mec='g')
                 ax.plot(self._gridFx[:,0], self._gridFx[:,1], 'g>')
+                ax.plot(self._gridFx[self._hangingFx.keys(),0], self._gridFx[self._hangingFx.keys(),1], 'gs', ms=10, mfc='none', mec='g')
             if facesY:
-                ax.plot(self._gridFy[self._hangingFy.keys(),0], self._gridFy[self._hangingFy.keys(),1], 'gs', ms=10, mfc='none', mec='g')
                 ax.plot(self._gridFy[:,0], self._gridFy[:,1], 'g^')
+                ax.plot(self._gridFy[self._hangingFy.keys(),0], self._gridFy[self._hangingFy.keys(),1], 'gs', ms=10, mfc='none', mec='g')
+            ax.set_xlabel('x1')
+            ax.set_ylabel('x2')
         elif self.dim == 3:
             if cells:
                 ax.plot(self.gridCC[:,0], self.gridCC[:,1], 'r.', zs=self.gridCC[:,2])
@@ -2056,7 +2078,6 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
                         ind = [key, hf[0]]
                         ax.plot(self._gridEx[ind,0], self._gridEx[ind,1], 'k:', zs=self._gridEx[ind,2])
 
-
             if edgesY:
                 ax.plot(self._gridEy[:,0], self._gridEy[:,1], 'k<', zs=self._gridEy[:,2])
                 ax.plot(self._gridEy[self._hangingEy.keys(),0], self._gridEy[self._hangingEy.keys(),1], 'ks', ms=10, mfc='none', mec='k', zs=self._gridEy[self._hangingEy.keys(),2])
@@ -2072,15 +2093,28 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
                     for hf in self._hangingEz[key]:
                         ind = [key, hf[0]]
                         ax.plot(self._gridEz[ind,0], self._gridEz[ind,1], 'k:', zs=self._gridEz[ind,2])
-
+            ax.set_xlabel('x1')
+            ax.set_ylabel('x2')
+            ax.set_zlabel('x3')
+        ax.grid(True)
         if showIt:plt.show()
 
-    def plotImage(self, I, ax=None, showIt=True, grid=False):
+    def plotImage(self, I, ax=None, showIt=False, grid=False, clim=None):
         if self.dim == 3: raise Exception('Use plot slice?')
+
+
+        import matplotlib.pyplot as plt
+        import matplotlib
+        from mpl_toolkits.mplot3d import Axes3D
+        import matplotlib.colors as colors
+        import matplotlib.cm as cmx
 
         if ax is None: ax = plt.subplot(111)
         jet = cm = plt.get_cmap('jet')
-        cNorm  = colors.Normalize(vmin=I.min(), vmax=I.max())
+        cNorm  = colors.Normalize(
+            vmin=I.min() if clim is None else clim[0],
+            vmax=I.max() if clim is None else clim[1])
+
         scalarMap = cmx.ScalarMappable(norm=cNorm, cmap=jet)
         ax.set_xlim((self.x0[0], self.h[0].sum()))
         ax.set_ylim((self.x0[1], self.h[1].sum()))
@@ -2089,8 +2123,10 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
             ax.add_patch(plt.Rectangle((x0[0], x0[1]), sz[0], sz[1], facecolor=scalarMap.to_rgba(I[ii]), edgecolor='k' if grid else 'none'))
             # if text: ax.text(self.center[0],self.center[1],self.num)
         scalarMap._A = []  # http://stackoverflow.com/questions/8342549/matplotlib-add-colorbar-to-a-sequence-of-line-plots
-        plt.colorbar(scalarMap)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
         if showIt: plt.show()
+        return [scalarMap]
 
     def plotSlice(self, v, vType='CC',
         normal='Z', ind=None, grid=True, view='real',
@@ -2101,6 +2137,13 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
 
         assert vType in ['CC','F','E']
         assert self.dim == 3
+
+
+        import matplotlib.pyplot as plt
+        import matplotlib
+        from mpl_toolkits.mplot3d import Axes3D
+        import matplotlib.colors as colors
+        import matplotlib.cm as cmx
 
         szSliceDim = len(getattr(self, 'h'+normal.lower())) #: Size of the sliced dimension
         if ind is None: ind = int(szSliceDim/2)
@@ -2181,6 +2224,25 @@ class TreeMesh(BaseTensorMesh, InnerProducts):
         if showIt: plt.show()
         return tuple(out)
 
+    def __len__(self): return self.nC
+
+    def __getitem__(self, key):
+        if isinstance( key, slice ) :
+            #Get the start, stop, and step from the slice
+            return [self[ii] for ii in xrange(*key.indices(len(self)))]
+        elif isinstance( key, int ) :
+            if key < 0 : #Handle negative indices
+                key += len( self )
+            if key >= len( self ) :
+                raise IndexError, "The index (%d) is out of range."%key
+
+            self._numberCells() # no-op if numbered
+            index   = self._i2cc[key]
+            pointer = self._asPointer(index)
+            return Cell(self, index, pointer)
+        else:
+            raise TypeError, "Invalid argument type."
+
 
 class Cell(object):
     def __init__(self, mesh, index, pointer):
@@ -2189,9 +2251,38 @@ class Cell(object):
         self._pointer = pointer
 
     @property
+    def nodes(self):
+        """The node index in _gridN (this may include hanging nodes)."""
+        M = self.mesh
+        M._numberNodes()
+        p = self._pointer
+        i = self._index
+        w = M._levelWidth(p[-1])
+
+        if M.dim == 2:
+            n = [
+                    i,
+                    M._index([ p[0] + w, p[1]   , p[2]]),
+                    M._index([ p[0]    , p[1]+ w, p[2]]),
+                    M._index([ p[0] + w, p[1]+ w, p[2]]),
+                ]
+        elif self.dim == 3:
+            n = [
+                    i,
+                    M._index([ p[0] + w, p[1]    , p[2]    ,p[3]]),
+                    M._index([ p[0]    , p[1] + w, p[2]    ,p[3]]),
+                    M._index([ p[0] + w, p[1] + w, p[2]    ,p[3]]),
+                    M._index([ p[0]    , p[1]    , p[2] + w,p[3]]),
+                    M._index([ p[0] + w, p[1]    , p[2] + w,p[3]]),
+                    M._index([ p[0]    , p[1] + w, p[2] + w,p[3]]),
+                    M._index([ p[0] + w, p[1] + w, p[2] + w,p[3]]),
+                ]
+        return [M._n2i[_] for _ in n]
+
+    @property
     def center(self):
         if getattr(self, '_center', None) is None:
-            self._center = self.mesh._cellC(self._pointer)
+            self._center = np.array(self.mesh._cellC(self._pointer))
         return self._center
     @property
     def h(self): return self.mesh._cellH(self._pointer)
@@ -2245,114 +2336,3 @@ class NotBalancedException(TreeException):
     pass
 class CellLookUpException(TreeException):
     pass
-
-if __name__ == '__main__':
-
-    def topo(x):
-        return np.sin(x*(2.*np.pi))*0.3 + 0.5
-
-    def function(cell):
-        r = cell.center - np.array([0.5]*len(cell.center))
-        dist = np.sqrt(r.dot(r))
-        # dist2 = np.abs(cell.center[-1] - topo(cell.center[0]))
-
-        # dist = min([dist1,dist2])
-        # if dist < 0.05:
-        #     return 5
-        if dist < 0.1:
-            return 5
-        if dist < 0.2:
-            return 4
-        if dist < 0.4:
-            return 3
-        return 2
-
-    # T = TreeMesh([[(1,128)],[(1,128)],[(1,128)]],levels=7)
-    # T = TreeMesh([128,128,128])
-    # T = TreeMesh([64,64],levels=6)
-    T = TreeMesh([4,4,4])
-    # T = TreeMesh([[(1,128)],[(1,128)]],levels=7)
-    # T.refine(lambda xc:2, balance=False)
-    # T._index([0,0,0])
-    # T._pointer(0)
-
-
-    # tic = time.time()
-    T.refine(function)#, balance=False)
-    # print time.time() - tic
-    # print T.nC
-    T.plotSlice(np.log(T.vol))#np.random.rand(T.nC))
-
-    plt.show()
-    blah
-
-    # T.plotImage(np.arange(len(T.vol)),showIt=True)
-
-    # print T.getFaceInnerProduct()
-    # print T.gridFz
-
-
-    # T._refineCell([8,0,1])
-    # T._refineCell([8,0,2])
-    # T._refineCell([12,0,2])
-    # T._refineCell([8,4,2])
-    # T._refineCell([6,0,3])
-    # T._refineCell([8,8,1])
-    # T._refineCell([0,0,0,1])
-    # T.__dirty__ = True
-
-
-    # print T.gridFx.shape[0], T.nFx
-
-
-
-    ax = plt.subplot(211)
-    ax.spy(T.edgeCurl)
-
-    # print Mesh.TensorMesh([2,2,2]).edgeCurl.todense()
-    # print T.edgeCurl.todense()
-    # print Mesh.TensorMesh([2,2,2]).edgeCurl.todense() - T.edgeCurl.todense()
-    # print T.gridEy - Mesh.TensorMesh([2,2,2]).gridEy
-
-    # print T.edge
-    # T.plotGrid(ax=ax)
-
-    # R = deflationMatrix(T._facesX, T._hangingFx, T._fx2i)
-    # print R
-
-    ax = plt.subplot(212)#, projection='3d')
-    ax.spy(Mesh.TensorMesh([2,2,2]).edgeCurl)
-
-    # ax = plt.subplot(313)
-    # ax.spy(T.faceDiv[:,:T.nFx] * R)
-
-
-    # T.balance()
-    # T.plotGrid(ax=ax)
-
-    # cx = T._getNextCell([0,0,1],direction=0,positive=True)
-    # print cx
-    # # print [T._asPointer(_) for _ in cx]
-    # cx = T._getNextCell([8,0,3],direction=0,positive=False)
-    # print T._asPointer(cx)
-    # cx = T._getNextCell([8,8,1],direction=1,positive=False)
-    # print cx, #[T._asPointer(_) for _ in cx]
-    # cm = T._getNextCell([64,80,4],direction=0,positive=False)
-    # cy = T._getNextCell([64,80,4],direction=1,positive=True)
-    # cp = T._getNextCell([64,80,4],direction=1,positive=False)
-
-    # ax.plot( T._cellN([4,0,1])[0],T._cellN([4,0,1])[1], 'yd')
-    # ax.plot( T._cellN(cx)[0],T._cellN(cx)[1], 'ys')
-    # ax.plot( T._cellN(cm)[0],T._cellN(cm)[1], 'ys')
-    # ax.plot( T._cellN(cy)[0],T._cellN(cy)[1], 'ys')
-    # ax.plot( T._cellN(cp[0])[0],T._cellN(cp[0])[1], 'ys')
-    # ax.plot( T._cellN(cp[1])[0],T._cellN(cp[1])[1], 'ys')
-
-
-
-
-
-    # print T.nN
-
-    plt.show()
-

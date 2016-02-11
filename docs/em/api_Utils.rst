@@ -4,10 +4,20 @@ simpegEM Utilities
 SimPEG for EM provides a few EM specific utility codes,
 sources, and analytic functions.
 
+Utilities for Electromagnetics
+==============================
+
+.. automodule:: SimPEG.EM.Utils
+    :show-inheritance:
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+
 Analytic Functions - Time
 =========================
 
-.. automodule:: SimPEG.EM.Utils.Ana.TEM
+.. automodule:: SimPEG.EM.Analytics.TDEM
     :show-inheritance:
     :members:
     :undoc-members:
@@ -17,17 +27,7 @@ Analytic Functions - Time
 Analytic Functions - Frequency
 ==============================
 
-.. automodule:: SimPEG.EM.Utils.Ana.FEM
-    :show-inheritance:
-    :members:
-    :undoc-members:
-    :inherited-members:
-
-
-Sources
-=======
-
-.. automodule:: SimPEG.EM.Utils.Sources.magneticDipole
+.. automodule:: SimPEG.EM.Analytics.FDEM
     :show-inheritance:
     :members:
     :undoc-members:
