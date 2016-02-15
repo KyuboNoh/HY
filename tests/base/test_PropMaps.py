@@ -56,7 +56,21 @@ class TestPropMaps(unittest.TestCase):
             assert np.all(m.sigma == np.exp(np.r_[1.,2,3]))
             assert m.sigmaDeriv is not None
 
+            assert m.mu == mu_0
+
             assert m.nP == 3
+
+    def test_defaultOverride(self):
+        expMap = Maps.ExpMap(Mesh.TensorMesh((3,)))
+        PM = MyReciprocalPropMap({'maps':[('sigma', expMap)], 'defaults':{'mu':mu_0*2}})
+        self.assertRaises(Exception, MyReciprocalPropMap, {'maps':[('sigma', expMap)], 'defaults':{'mu':mu_0*2, 'mui':5}}) # Cannot set both sides of the default
+
+        m = PM(np.r_[1.,2,3])
+        assert np.all(m.sigmaModel == np.r_[1,2,3])
+
+        self.assertEqual(m.mu, mu_0 * 2)
+        # self.assertEqual(m.mui, 1/(mu_0 * 2))
+
 
     def test_slices(self):
         expMap = Maps.ExpMap(Mesh.TensorMesh((3,)))
