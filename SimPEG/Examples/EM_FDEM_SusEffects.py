@@ -2,12 +2,6 @@ from SimPEG import *
 from SimPEG import EM
 from scipy.constants import mu_0
 
-try:
-    from pymatsolver import MumpsSolver
-    prb.Solver = MumpsSolver
-except ImportError, e:
-    prb.Solver = SolverLU
-
 def run(plotIt=True):
     """
         EM: FDEM: Effects of susceptibility
@@ -63,7 +57,14 @@ def run(plotIt=True):
     m = np.r_[sigma, mu]
     survey0 = EM.FDEM.Survey(srcLists)
     prob0 = EM.FDEM.Problem_b(mesh, mapping=maps)
-    prob0.Solver = MumpsSolver
+    
+
+    try:
+        from pymatsolver import MumpsSolver
+        prb.Solver = MumpsSolver
+    except ImportError, e:
+            prb.Solver = SolverLU
+
     survey0.pair(prob0)
     m = np.r_[sigma, mu]
     m0 = np.r_[sigma, np.ones(mesh.nC)*mu_0]
